@@ -30,8 +30,15 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
+import android.text.method.ScrollingMovementMethod;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -66,6 +73,11 @@ public class CalendarIntegration extends Activity
     private ListView listView;
 
 
+    private List<EventItem> eventItemList;
+    private RecyclerView recyclerView;
+    private EventAdapter eventAdapter;
+
+
 
 
     /**
@@ -78,9 +90,15 @@ public class CalendarIntegration extends Activity
 
         setContentView(R.layout.activity_events);
 
-        mOutputText = findViewById(R.id.event_text);
-        listView= (ListView)findViewById(R.id.list_of_events);
+        listView = findViewById(R.id.ides2);
+        mOutputText = findViewById(R.id.meetings);
+//
+//        recyclerView = findViewById(R.id.recyclerView);
+//        recyclerView.setHasFixedSize(true);
+//        recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
+        eventItemList = new ArrayList<>();
+//
 //        LinearLayout activityLayout = new LinearLayout(this);
 //        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
 //                LinearLayout.LayoutParams.MATCH_PARENT,
@@ -116,7 +134,7 @@ public class CalendarIntegration extends Activity
 //        //mOutputText.setText(
 //        //        "Click the \'" + BUTTON_TEXT +"\' button to test the API.");
 //        activityLayout.addView(mOutputText);
-
+//
         mProgress = new ProgressDialog(this);
         mProgress.setMessage("Calling Google Calendar API ...");
 
@@ -334,7 +352,7 @@ public class CalendarIntegration extends Activity
      * An asynchronous task that handles the Google Calendar API call.
      * Placing the API calls in their own task ensures the UI stays responsive.
      */
-    private class MakeRequestTask extends AsyncTask<Void, Void, List<EventAdapter>> {
+    private class MakeRequestTask extends AsyncTask<Void, Void, List<String>> {
         private com.google.api.services.calendar.Calendar mService = null;
         private Exception mLastError = null;
 
@@ -354,7 +372,7 @@ public class CalendarIntegration extends Activity
 
 
         @Override
-        protected List<EventAdapter> doInBackground(Void... params) {
+        protected List<String> doInBackground(Void... params) {
             try {
                 return getDataFromApi();
             } catch (Exception e) {
@@ -365,16 +383,18 @@ public class CalendarIntegration extends Activity
         }
 
         /**
-         * Fetch a list of the next 10 events from the primary calendar.
-         * @return List of Strings describing returned events.
+         * Fetch a list of the next 10 eventItems from the primary calendar.
+         * @return List of Strings describing returned eventItems.
          * @throws IOException
          */
-        private List<EventAdapter> getDataFromApi() throws IOException, JSONException {
+        private List<String> getDataFromApi() throws IOException, JSONException {
 
-            // List the next 10 events from the primary calendar.
+            // List the next 10 eventItems from the primary calendar.
             DateTime now = new DateTime(System.currentTimeMillis());
-            List<EventAdapter> eventAdapters = new ArrayList<>();
+            List<EventItem> eventAdapters = new ArrayList<>();
             List<String> eventStrings = new ArrayList<>();
+
+
 
             Events events = mService.events().list("primary")
                     .setMaxResults(10)
@@ -382,42 +402,40 @@ public class CalendarIntegration extends Activity
                     .setOrderBy("startTime")
                     .setSingleEvents(true)
                     .execute();
-//            List<Event> items = events.getItems();
-//
-//            for (Event event : items) {
-//
-//                String event_description = event.getSummary();
-//                if (event_description != null) {
-//
-//                    if (event.getAttendees() != null) {
-//                        List<String> emails = new ArrayList<>();
-//                        String attendees = event.getAttendees().toString();
-//
-//                        if (attendees != null && !attendees.isEmpty()) {
-//                            JSONArray jarray = new JSONArray(attendees);
-//
-//                            for (int i = 0; i < jarray.length(); i++) {
-//                                JSONObject attendee = jarray.getJSONObject(i);
-//                                String email = attendee.getString("email");
-//                                emails.add(email);
-//
-//                            }
-//                        }
-//
-//                        eventStrings.add(event_description);
-//                        eventAdapters.add(new Event(event_description, emails));
-////                        eventStrings.add(
-////                                String.format("Event: %s Attendees: %s", event_description, emails));
-//                    } //else
-////                        eventStrings.add(
-////                                String.format("Event: %s Attendees: ", event_description));
-//
-//                }
-//
-//            }
-//            return eventAdapters;
+            List<Event> items = events.getItems();
 
-            return null;
+            for (Event eventItem : items) {
+
+                String event_description = eventItem.getSummary();
+                if (event_description != null) {
+
+                    if (eventItem.getAttendees() != null) {
+                        List<String> emails = new ArrayList<>();
+                        String attendees = eventItem.getAttendees().toString();
+
+                        if (attendees != null && !attendees.isEmpty()) {
+                            JSONArray jarray = new JSONArray(attendees);
+
+                            for (int i = 0; i < jarray.length(); i++) {
+                                JSONObject attendee = jarray.getJSONObject(i);
+                                String email = attendee.getString("email");
+                                emails.add(email);
+
+                            }
+                        }
+
+                        eventStrings.add(event_description);
+                        eventAdapters.add(new EventItem(event_description, emails));
+//                        eventStrings.add(
+//                                String.format("EventItem: %s Attendees: %s", event_description, emails));
+                    } //else
+//                        eventStrings.add(
+//                                String.format("EventItem: %s Attendees: ", event_description));
+
+                }
+
+            }
+            return eventStrings;
         }
 
 
@@ -427,16 +445,21 @@ public class CalendarIntegration extends Activity
             mProgress.show();
         }
 
+
         @Override
-        protected void onPostExecute(List<EventAdapter> output) {
+        protected void onPostExecute(List<String> output) {
             mProgress.hide();
             if (output == null || output.size() == 0) {
                 mOutputText.setText("No results returned.");
             } else {
-                //output.add(0, "Data retrieved using the Google Calendar API:");
-                ArrayAdapter<EventAdapter> mHistory = new ArrayAdapter<>(CalendarIntegration.this, android.R.layout.simple_list_item_1, output);
-                listView.setAdapter((ListAdapter) output);
+//                eventAdapter = new EventAdapter(getApplicationContext(), eventItemList);
+//                recyclerView.setAdapter(eventAdapter);
                 //mOutputText.setText(TextUtils.join("\n", output));
+
+                ArrayAdapter<String> itemsAdapter =
+                        new ArrayAdapter<String>(getBaseContext(), android.R.layout.simple_list_item_1, output);
+
+                listView.setAdapter(itemsAdapter);
             }
         }
 

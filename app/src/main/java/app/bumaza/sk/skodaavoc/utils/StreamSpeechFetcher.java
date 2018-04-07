@@ -24,6 +24,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import app.bumaza.sk.skodaavoc.BuildConfig;
+
 /**
  * Created by janko on 4/6/18.
  */
@@ -34,7 +36,7 @@ public class StreamSpeechFetcher extends AsyncTask<Byte[], Void, String> {
     private byte[] audioData;
     private Context context;
     private AsyncTaskCompleteListener<String> listener;
-    String credentials = "team5:hackathon";
+    String credentials = BuildConfig.CREDENTIALS;
     private String base64 = Base64.encodeToString(credentials.getBytes(), Base64.DEFAULT);
 
     public static String stream_id = null;
